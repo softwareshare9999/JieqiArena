@@ -51,12 +51,18 @@
 
 `info string <Message>`
 - JAI engine's own status information.
+- After each finished game (and at match start/end), this is a named scoreboard:
+  `<Engine1Name> <Wins>-<Losses>-<Draws> <Engine2Name> (<Score1>-<Score2>)`
+- Example: `info string pikafishbmi2.exe 3-0-1 pikafishmodern.exe (3.5-0.5)`
+- Wins/Losses/Draws and Score1 are always for Engine1 (the engine set via `Engine1Path`).
 
 `info game <CurrentGame>/<TotalGames>`
 - Current game progress.
 
 `info wld <Wins>-<Losses>-<Draws>`
-- Total wins, losses, and draws statistics for the current match.
+- Total wins, losses, and draws for **Engine1** in the current match.
+- Engine2's record is the reverse: `<Losses>-<Wins>-<Draws>`.
+- Example: `info wld 3-0-1` means Engine1 has 3 wins, 0 losses, and 1 draw.
 
 `info fen <FENString>`
 - Current game FEN, only sent once at the start of the game, GUI will clear the current move record.
@@ -65,7 +71,8 @@
 - Engine move with time taken in milliseconds.
 
 `info result <ResultString>`
-- Single game result (`1-0`, `0-1`, `1/2-1/2`).
+- Single game result. The standard token (`1-0`, `0-1`, `1/2-1/2`) may be followed by the winner:
+  `1-0 (<RedEngine> won)`, `0-1 (<BlackEngine> won)`, or `1/2-1/2 (draw)`.
 
 `info engine <RedEngine> <BlackEngine>`
 - Indicates the red and black engines currently competing.
@@ -85,11 +92,13 @@
 9. GUI -> `isready`
 10. Engine -> `readyok`
 11. GUI -> `startmatch`
-12. Engine -> `info string Match started`
-13. Engine -> `info game 1/100`
-14. Engine -> `info engine engine1.exe engine2.exe`
-15. ...
-16. Engine -> `info depth 10 score cp 50 ...` (This is passed through from the jieqi engine)
-17. ...
-18. Engine -> `info result 1-0`
-19. Engine -> `info wld 1-0-0`
+12. Engine -> `info game 0/200`
+13. Engine -> `info engine engine1.exe engine2.exe`
+14. Engine -> `info wld 0-0-0`
+15. Engine -> `info string engine1.exe 0-0-0 engine2.exe (0.0-0.0)`
+16. ...
+17. Engine -> `info depth 10 score cp 50 ...` (This is passed through from the jieqi engine)
+18. ...
+19. Engine -> `info result 1-0 (engine1.exe won)`
+20. Engine -> `info wld 1-0-0`
+21. Engine -> `info string engine1.exe 1-0-0 engine2.exe (1.0-0.0)`

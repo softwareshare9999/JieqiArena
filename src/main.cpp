@@ -105,6 +105,32 @@ static std::string basename_from_path(const std::string &path) {
     return (pos == std::string::npos) ? path : path.substr(pos + 1);
 }
 
+static std::string engine1_label() {
+    std::string name = basename_from_path(g_engine1_path);
+    return name.empty() ? "Engine1" : name;
+}
+
+static std::string engine2_label() {
+    std::string name = basename_from_path(g_engine2_path);
+    return name.empty() ? "Engine2" : name;
+}
+
+// Named scoreboard shown in JieqiBox's free-text match field.
+// WLD is always from Engine1's point of view (wins-losses-draws).
+static void send_match_standings() {
+    const int wins = g_wins_engine1.load();
+    const int losses = g_losses_engine1.load();
+    const int draws = g_draws.load();
+    const double score1 = g_score_engine1.load();
+    const double score2 = g_score_engine2.load();
+    const std::string e1 = engine1_label();
+    const std::string e2 = engine2_label();
+
+    send_to_gui(std::format("info wld {}-{}-{}", wins, losses, draws));
+    send_info_string(std::format("{} {}-{}-{} {} ({:.1f}-{:.1f})", e1, wins, losses, draws, e2,
+                                 score1, score2));
+}
+
 static std::string result_to_string(Color result) {
     if (result == Color::RED) return "1-0";
     if (result == Color::BLACK) return "0-1";
@@ -262,16 +288,11 @@ void worker(int worker_id) {
             total_games = g_rounds * 2;  // Get total games count for reporting
         }
 
-        send_info_string(std::format("Starting Game {} on worker {} (Primary: {})", task.game_id,
-                                     worker_id, is_primary_worker));
-
-        // Extract engine names from paths for info engine command
+        // Current game colors, then re-send standings so the named WLD stays visible.
         if (is_primary_worker) {
-            std::string red_engine_name =
-                task.red_engine_path.substr(task.red_engine_path.find_last_of("/\\") + 1);
-            std::string black_engine_name =
-                task.black_engine_path.substr(task.black_engine_path.find_last_of("/\\") + 1);
-            send_engine_info(red_engine_name, black_engine_name);
+            send_engine_info(basename_from_path(task.red_engine_path),
+                             basename_from_path(task.black_engine_path));
+            send_match_standings();
         }
 
         // Pass the primary flag to play_game
@@ -305,15 +326,24 @@ void worker(int worker_id) {
         // Increment total games completed and send universal updates
         int completed_count = ++g_games_completed;
 
-        send_info_string(std::format("Game {} Finished. Score: E1 {:.1f} - E2 {:.1f} (Draws: {})",
-                                     task.game_id, g_score_engine1.load(), g_score_engine2.load(),
-                                     g_draws.load()));
+        if (is_primary_worker) {
+            std::string result_detail;
+            if (result == Color::RED) {
+                result_detail = std::format("1-0 ({} won)",
+                                            basename_from_path(task.red_engine_path));
+            } else if (result == Color::BLACK) {
+                result_detail = std::format("0-1 ({} won)",
+                                            basename_from_path(task.black_engine_path));
+            } else {
+                result_detail = "1/2-1/2 (draw)";
+            }
+            send_to_gui(std::format("info result {}", result_detail));
+        }
 
         // These are global stats, so any worker can send them. The GUI will just
-        // update.
+        // update. Standings info string is sent last so it stays visible.
         send_to_gui(std::format("info game {}/{}", completed_count, total_games));
-        send_to_gui(std::format("info wld {}-{}-{}", g_wins_engine1.load(), g_losses_engine1.load(),
-                                g_draws.load()));
+        send_match_standings();
     }
 }
 
@@ -391,8 +421,8 @@ void run_tournament() {
     }
 
     send_to_gui(std::format("info game 0/{}", total_games));
-    send_to_gui("info wld 0-0-0");
-    send_info_string(std::format("Match started with {} worker(s).", g_concurrency));
+    send_engine_info(engine1_label(), engine2_label());
+    send_match_standings();
 
     std::vector<std::thread> workers;
     for (int i = 0; i < g_concurrency; ++i) {
@@ -409,9 +439,7 @@ void run_tournament() {
     } else {
         send_info_string("Tournament finished!");
     }
-    // Send final WLD
-    send_to_gui(std::format("info wld {}-{}-{}", g_wins_engine1.load(), g_losses_engine1.load(),
-                            g_draws.load()));
+    send_match_standings();
 }
 
 // --- JAI Command Handling ---
