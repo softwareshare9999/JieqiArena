@@ -51,7 +51,8 @@ class Game {
 
    public:
     Game(Engine &r_eng, Engine &b_eng, std::string_view fen,
-         std::optional<TimeControl> tc = std::nullopt, int timeout_buffer_ms = 5000);
+         std::optional<TimeControl> tc = std::nullopt, int timeout_buffer_ms = 5000,
+         SearchMode search_mode = SearchMode::Time, int nodes_per_move = 0);
 
     // Parses the full FEN string to set up the board and piece pool.
     void parse_fen(std::string_view fen);

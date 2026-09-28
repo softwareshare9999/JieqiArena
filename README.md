@@ -52,22 +52,35 @@ JieqiArena is a demo of JAI (Jieqi Arena Interface) that supports basic engine c
 
 ### Time Control
 
+*   **SearchMode**
+    *   Description: How each engine is told to search. `time` uses a game clock (`go wtime/btime/winc/binc`). `movetime` sends `go movetime MainTimeMs` every move. `nodes` sends `go nodes NodesPerMove` and never flags on time — use this for algorithm A/B so a clock-overrun bug cannot buy extra search.
+    *   Type: `combo`
+    *   Default: `time`
+    *   Values: `time`, `movetime`, `nodes`
+
 *   **MainTimeMs**
-    *   Description: The base thinking time for each player in a game, specified in milliseconds.
+    *   Description: In `time` mode, the base clock in milliseconds. In `movetime` mode, the per-move limit. Ignored in `nodes` mode.
     *   Type: `spin`
     *   Default: `1000`
     *   Min: `0`
     *   Max: `3600000`
 
 *   **IncTimeMs**
-    *   Description: The time increment added to a player's clock after each move, specified in milliseconds.
+    *   Description: Time increment after each move, in milliseconds. Only used in `time` mode.
     *   Type: `spin`
     *   Default: `0`
     *   Min: `0`
     *   Max: `60000`
 
+*   **NodesPerMove**
+    *   Description: Nodes each engine may search per move when `SearchMode` is `nodes`. Same node budget for both engines; NPS differences then only change wall-clock time, not search depth.
+    *   Type: `spin`
+    *   Default: `100000`
+    *   Min: `1`
+    *   Max: `100000000`
+
 *   **TimeoutBufferMs**
-    *   Description: A grace period in milliseconds to account for process and communication overhead. A player is only declared lost on time if their clock falls below `-(TimeoutBufferMs)`.
+    *   Description: A grace period in milliseconds to account for process and communication overhead. In `time` mode, a player is only declared lost on time if their clock falls below `-(TimeoutBufferMs)`. In `movetime` mode, a move is flagged if wall time exceeds `MainTimeMs + TimeoutBufferMs`. Unused in `nodes` mode.
     *   Type: `spin`
     *   Default: `5000`
     *   Min: `0`

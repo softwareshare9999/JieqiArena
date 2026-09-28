@@ -44,7 +44,7 @@
   - `button`: Button. When user clicks, GUI will send `setoption name <Name>` to the engine, used to trigger an action.
     - Example: `option name ClearHash type button`
   - `combo`: Dropdown list. Can be followed by multiple `var` to define options.
-    - Example: `option name AdjudicationRule type combo default Off var Off var MateOrStalemate`
+    - Example: `option name SearchMode type combo default time var time var movetime var nodes`
 
 `readyok`
 - Confirmation of `isready` command.

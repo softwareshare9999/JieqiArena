@@ -17,10 +17,10 @@ extern const std::map<Piece, char> piece_to_char;
 extern std::atomic<bool> g_stop_match;
 
 Game::Game(Engine &r_eng, Engine &b_eng, std::string_view fen, std::optional<TimeControl> tc,
-           int timeout_buffer_ms)
+           int timeout_buffer_ms, SearchMode search_mode, int nodes_per_move)
     : red_engine(r_eng), black_engine(b_eng), initial_fen(fen) {
     if (tc) {
-        time_manager.emplace(*tc, timeout_buffer_ms);
+        time_manager.emplace(*tc, timeout_buffer_ms, search_mode, nodes_per_move);
     }
     parse_fen(fen);
 }
@@ -133,10 +133,10 @@ Color Game::run(bool is_primary_game) {
             return (current_turn == Color::RED) ? Color::BLACK : Color::RED;
         }
 
-        // --- TIME CHECK ---
+        // --- TIME CHECK (clock / movetime only; nodes mode never flags) ---
         if (time_manager) {
             time_manager->update(current_turn, elapsed_ms);
-            if (time_manager->is_out_of_time(current_turn)) {
+            if (time_manager->is_out_of_time(current_turn, elapsed_ms)) {
                 send_info_string(std::format("{} loses on time. {} wins.",
                                              current_engine.get_name(),
                                              opponent_engine.get_name()));

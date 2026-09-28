@@ -28,8 +28,16 @@ bool g_save_notation = false;
 std::string g_save_notation_dir = "notations";
 int g_rounds = 10;
 int g_concurrency = 2;
-TimeControl g_tc = {1000, 1000, 100, 100};  // Default 1s + 0.1s
+TimeControl g_tc = {1000, 1000, 0, 0};  // Default 1s + 0s
 int g_timeout_buffer_ms = 5000;             // Default 5s
+SearchMode g_search_mode = SearchMode::Time;
+int g_nodes_per_move = 100000;
+
+static SearchMode parse_search_mode(const std::string &value) {
+    if (value == "movetime") return SearchMode::Movetime;
+    if (value == "nodes") return SearchMode::Nodes;
+    return SearchMode::Time;
+}
 
 // --- Shared Tournament Resources ---
 struct GameTask {
@@ -185,7 +193,8 @@ Color play_game(const GameTask &task, bool is_primary) {
         if (is_primary) {
             send_to_gui(std::format("info fen {}", initial_fen));
         }
-        game_ptr = std::make_unique<Game>(red_engine, black_engine, initial_fen, g_tc, g_timeout_buffer_ms);
+        game_ptr = std::make_unique<Game>(red_engine, black_engine, initial_fen, g_tc,
+                                          g_timeout_buffer_ms, g_search_mode, g_nodes_per_move);
         // Pass the primary flag to the game
         result = game_ptr->run(is_primary);
     } catch (const std::exception &e) {
@@ -392,6 +401,15 @@ void run_tournament() {
     // Load the book at the start of the match.
     load_fen_book();
 
+    if (g_search_mode == SearchMode::Nodes) {
+        send_info_string(std::format("SearchMode=nodes NodesPerMove={}.", g_nodes_per_move));
+    } else if (g_search_mode == SearchMode::Movetime) {
+        send_info_string(std::format("SearchMode=movetime MainTimeMs={}.", g_tc.wtime_ms));
+    } else {
+        send_info_string(std::format("SearchMode=time MainTimeMs={} IncTimeMs={}.", g_tc.wtime_ms,
+                                     g_tc.winc_ms));
+    }
+
     if (!g_fen_book.empty()) {
         send_info_string("Shuffling FEN book...");
         std::random_device rd;
@@ -456,8 +474,11 @@ void handle_jai() {
     send_to_gui("option name SaveNotationDir type string");
     send_to_gui("option name TotalRounds type spin default 10 min 1 max 1000");
     send_to_gui("option name Concurrency type spin default 2 min 1 max 128");
+    send_to_gui(
+        "option name SearchMode type combo default time var time var movetime var nodes");
     send_to_gui("option name MainTimeMs type spin default 1000 min 0 max 3600000");
     send_to_gui("option name IncTimeMs type spin default 0 min 0 max 60000");
+    send_to_gui("option name NodesPerMove type spin default 100000 min 1 max 100000000");
     send_to_gui("option name TimeoutBufferMs type spin default 5000 min 0 max 60000");
     send_to_gui("option name Logging type check default false");
 
@@ -494,10 +515,14 @@ void handle_setoption(const std::string &line) {
         g_rounds = std::stoi(option_value);
     else if (option_name == "Concurrency")
         g_concurrency = std::stoi(option_value);
+    else if (option_name == "SearchMode")
+        g_search_mode = parse_search_mode(option_value);
     else if (option_name == "MainTimeMs")
         g_tc.wtime_ms = g_tc.btime_ms = std::stoi(option_value);
     else if (option_name == "IncTimeMs")
         g_tc.winc_ms = g_tc.binc_ms = std::stoi(option_value);
+    else if (option_name == "NodesPerMove")
+        g_nodes_per_move = std::stoi(option_value);
     else if (option_name == "TimeoutBufferMs")
         g_timeout_buffer_ms = std::stoi(option_value);
     else if (option_name == "Logging")
